@@ -84,6 +84,54 @@ Two behaviors worth recording for anyone repeating this headless flow:
   firing the request (deny is the initial focus; grant enables after the
   first countdown tick).
 
+## Bootloader layer after the unlock (survey, 2026-11-13)
+
+A survey of the bootloader layer run from the rooted system with **no
+reboots** — the constraint was that any future unattended power cycle
+must land back in Android. Two independent gates are in play, and only
+one was ever opened:
+
+| Layer | State on this unit | Evidence |
+| --- | --- | --- |
+| AVB device state (TEE) | Unlocked, persisting | `read_state` re-probe as plain shell, 0 write commands: `lock_state a=0`; `flash.locked=0`, `verifiedbootstate=orange`, `vbmeta.device_state=unlocked`, `veritymode=enforcing` |
+| Bootloader fastboot gate | Still closed; never needed | bootloader fastboot refused partition writes as "locked device" during flash prep; recovery Fastbootd and root `dd` both bypass it |
+
+Everything else measured stock and healthy:
+
+- `vbmeta_a` header: AVB 1.0, RSA4096/SHA256 (algorithm 2), rollback
+  index 0, flags 0 — verification is fully enabled *in the image*; only
+  the unlocked device state lets the Magisk-patched `boot_a` boot
+  (orange).
+- `bootloader_control` in `misc`: BCAB magic, `slot_suffix _a`, slot a
+  active (priority 9, successful boot), slot b dormant — healthy steady
+  state.
+- `bootloader_a`/`bootloader_b` (4 MiB each): signed Amlogic images
+  (`@ML ` magic, `DBLK_PAYLOAD_END` markers); the U-Boot env carries
+  `bootloader_wp=1` and `forUpgrade_secureBoot=true`.
+- U-Boot env: `avb2=1`, `EnableSelinux=enforcing`, `active_slot=_a`,
+  `boot_part=boot_a`, `check_result=succ`, `production_mode=1`. The
+  env's `bootloader_version` (01.01.240321.093522) predates the running
+  bootloader (`ro.boot.bootloader` = 01.01.260306.163417) — the env
+  block is not rewritten wholesale by bootloader updates.
+
+One noncanonical state was found and repaired. The `misc` BCB still
+carried `bootonce-bootloader`, written during flash-session prep. The
+box had booted Android twice with it present (warm-reboot path), but
+U-Boot's `preboot` runs `bcb uboot-command` (with `enter_fastboot` as
+the target), so the field is live code on the boot path — an unattended
+cold boot could have parked the box in fastboot. It was cleared with
+one surgical verified write: bytes 0–32 of `misc` block 0 zeroed
+(19 bytes changed), every other byte — including `bootloader_control`
+at offset 2048 — preserved and byte-verified by an independent readback.
+With the command field empty, the canonical state, any future reboot
+follows the normal Android path; `adb reboot bootloader`/`recovery`
+rewrite the field on demand, so nothing is lost.
+
+Re-locking the TEE state is possible but only sensible after restoring
+the stock `boot_a`: a locked device enforces AVB and the
+Magisk-patched image would fail it. Receipt and before/after block
+images: `work/20261113T172743Z-bootlayer-probe-aafd/` (out of git).
+
 ## Evidence lineage
 
 - The trusted service is the documented upstream OP-TEE AVB TA
