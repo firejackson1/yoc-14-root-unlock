@@ -22,7 +22,9 @@ its 15051976 → 16202347 upgrade).
 | Factory reset on the following boot | Expected and observed to start; data loss accepted beforehand |
 | Post-reboot unlocked/orange persistence | Verified: factory reset completed, fresh boot reported `flash.locked=0`, `vbmeta.device_state=unlocked`, `verifiedbootstate=orange`, trusted state 0, boot completed |
 | Partition layout | No `init_boot`; ramdisk in `boot` (`boot_a`=`mmcblk0p20`, `boot_b`=`mmcblk0p21`), classic Amlogic layout, virtual A/B enabled |
-| Root installation | Not yet attempted. Exact-build stock images sourced from Google's full OTA for 15051976 and validated byte-exactly (2026-11-13); the generic ramdisk is confirmed in `boot` (`init` present; `vendor_boot` vendor-only), so the Magisk target is `boot_a` |
+| Root installation | Patched image built and verified (2026-11-13); flash pending. Exact-build stock images sourced from Google's full OTA for 15051976 and validated byte-exactly; the generic ramdisk is confirmed in `boot`, so the Magisk target is `boot_a` |
+| Userland ABI | 32-bit: `armeabi-v7a`, `zygote32`, no `/system/lib64` and no `linker64` anywhere, on an arm64 kernel. Anything staged on this box must be `armeabi-v7a` — the arm64 Magisk binaries fail to exec (ENOENT: their `PT_INTERP` `/system/bin/linker64` does not exist); the 32-bit `magisk` is static-PIE and runs unprivileged |
+| Magisk-patched `boot` | Built headlessly on-device with the pinned Magisk v30.7 APK's own `boot_patch.sh` + `armeabi-v7a` libs (this ATV build has no documentsui, so the app's file picker cannot run). Flags: `KEEPVERITY=true`, `KEEPFORCEENCRYPT=true`, `PATCHVBMETAFLAG=false`, `RECOVERYMODE=false`, `LEGACYSAR=false`; pre-init partition `metadata`. Verified byte-level: kernel identical to stock, all 26 stock ramdisk entries preserved, 9 Magisk entries whose payloads hash-match the kit, backup config recorded, AVB footer preserved/relocated exactly as the app produces it (receipt `work/20261113T040256Z-magisk-patch-50001366/`) |
 
 ## Unlock execution trace (first YOC)
 
@@ -87,9 +89,9 @@ the `GUSA` serial family, not one serial.
 
 ## Not yet established
 
-- Root on this model: stock images are sourced and validated, and the
-  Magisk patch target is confirmed as `boot_a`; the patch itself, the
-  flash with full readback, and update-pause discipline are planned but
-  not yet executed.
+- Root flash and verification: the Magisk-patched `boot` image for
+  15051976 is built and byte-level verified; flashing it to `boot_a`
+  through recovery Fastbootd and post-boot `su` verification are planned
+  but not yet executed.
 - One unit does not establish support for other YOC firmware versions or
   hardware sold under a similar name.

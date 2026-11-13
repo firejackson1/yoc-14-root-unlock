@@ -9,14 +9,15 @@ patched or flashed. This page records the validation standard and the
 evidence behind it. The comparison itself is read-only; no device was
 touched.
 
-**Status (2026-11-13): sourced and validated.** Google's own full OTA
-for 15051976 (lineage entry #4 below) was located through a third-party
+**Status (2026-11-13): sourced, validated, and patched.** Google's own full
+OTA for 15051976 (lineage entry #4 below) was located through a third-party
 tracker's stored checkin result; `boot`, `vendor_boot`, `vbmeta`,
 `vbmeta_system` and `dtbo` were then extracted from it over HTTP range
 requests with `tools/fetch_full_ota_partitions.py` (receipt:
 `work/20261113T034457Z-stock-image-fetch-29615442/`). All five images
 match this table byte-exactly. The images live outside git in
-`cache/stock-15051976/`.
+`cache/stock-15051976/`. The Magisk-patched `boot` built from them lives
+in `cache/magisk-patched-15051976/` (see the last section).
 
 The table below is generated from
 `work/20261113T023909Z-firmware-crosscheck-9ee2c82c/build-15051976-validated-partitions.json`;
@@ -145,3 +146,39 @@ Magisk patch target is therefore **`boot.img`**, not the Android 12-era
 `vendor_boot`. The `boot` kernel is gzip-compressed (arm64 magic verified
 after decompression); `vendor_boot` packs a bzip2-compressed Amlogic
 multi-dtb (`AML_` v2, 4 dtbs) behind its ramdisk.
+
+## Magisk-patched image (2026-11-13)
+
+The patched boot image lives outside git in
+`cache/magisk-patched-15051976/new-boot.img` (67,108,864 B, sha256
+`639060ccec7f7419f665a66faf630059606ffb428199a765a64afba8f0fd0cd8`),
+produced **on the device** by the pinned Magisk v30.7 APK's own
+`assets/boot_patch.sh` with its `armeabi-v7a` native libs — the same
+artifacts and flags the app's "Select and patch a file" flow uses, run
+headlessly because this ATV build ships no documentsui/file picker (only
+the `com.android.tv.frameworkpackagestubs` stub answers `GET_CONTENT`).
+Receipt: `work/20261113T040256Z-magisk-patch-50001366/`.
+
+Facts that will matter again on this model:
+
+- **The userland is 32-bit** (`ro.product.cpu.abi=armeabi-v7a`,
+  `zygote32`, no `/system/lib64`, no `linker64` on the whole system) on
+  an arm64 kernel. A Magisk kit must be `armeabi-v7a`: the arm64
+  `libmagisk.so` is dynamically linked (PT_INTERP `/system/bin/linker64`)
+  and fails to execute with ENOENT, while the 32-bit one is static-PIE
+  and runs unprivileged. Post-root `magiskd` also runs as 32-bit.
+- Patch flags: `KEEPVERITY=true`, `KEEPFORCEENCRYPT=true` (data
+  encrypted), `PATCHVBMETAFLAG=false`, `RECOVERYMODE=false`,
+  `LEGACYSAR=false`; pre-init partition `metadata`.
+- The stock `boot` image ends with an appended **avbtool 1.2.0 unsigned
+  hash-footer vbmeta (768 B) plus an `AVBf` footer in its last 64 bytes**
+  (hash descriptor: partition `boot`, `sha256`, 32-byte salt; property
+  descriptors carry the build fingerprint). `magiskboot repack`
+  relocates that blob to the new content end and updates the footer's
+  size/offset fields but leaves the hash descriptor stale (stock digest)
+  — byte-for-byte what the Magisk app produces on AVB-footed images.
+  Acceptable only because the bootloader is already unlocked (orange),
+  so boot verification is skipped.
+- The `SHA1` attribute Magisk records in `.backup/.magisk` is the SHA-1
+  of the whole 64 MiB stock file:
+  `25247aa83b6771638b3a79f442392a6b37022028`.

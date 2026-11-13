@@ -87,6 +87,13 @@ user re-enables ADB debugging and `verify` proves orange/unlocked.
   out of git). Do not assume the 2024 repo's
   `firmware/stock-boot-15051976.img.gz` (jarvis/SNA) or the Android 12-era
   YOC OTA (XDA thread) matches this build.
+- **Patched image built and verified (2026-11-13)**: Magisk v30.7 with its
+  `armeabi-v7a` kit (the userland is 32-bit `zygote32` on this arm64-kernel
+  box; the arm64 kit cannot exec there), run headlessly on-device via the
+  APK's own `boot_patch.sh` because this ATV build has no file picker.
+  Output: `cache/magisk-patched-15051976/new-boot.img` (out of git),
+  receipt `work/20261113T040256Z-magisk-patch-50001366/`. Flashing it to
+  `boot_a` through recovery Fastbootd is the remaining step.
 - The reset-button fastboot menu documented on XDA for this model is a
   hardware fallback if a future flash is unbootable.
 - This is the first YOC on this method; `unlock_hardware_verified` in
