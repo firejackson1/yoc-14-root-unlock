@@ -83,7 +83,9 @@ user re-enables ADB debugging and `verify` proves orange/unlocked.
   payload images, not assumed.
 - The stock image must come from the YOC's own 15051976 OTA — do not assume
   the 2024 repo's `firmware/stock-boot-15051976.img.gz` (jarvis/SNA) or the
-  Android 12-era YOC OTA (XDA thread) matches this build.
+  Android 12-era YOC OTA (XDA thread) matches this build. Exact per-partition
+  lengths and SHA-256 values for validating any candidate image, cross-checked
+  against two Google OTA manifests, are in `docs/FIRMWARE-SOURCES.md`.
 - The reset-button fastboot menu documented on XDA for this model is a
   hardware fallback if a future flash is unbootable.
 - This is the first YOC on this method; `unlock_hardware_verified` in
