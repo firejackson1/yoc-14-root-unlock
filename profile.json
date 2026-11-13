@@ -10,7 +10,7 @@
   "build_incremental": "15051976",
   "android": "14",
   "ndk_version": "28.2.13676358",
-  "unlock_hardware_verified": false,
+  "unlock_hardware_verified": true,
   "root_partition": "undetermined: boot_a (mmcblk0p20) or vendor_boot_a (mmcblk0p5); confirm which carries the generic ramdisk from the OTA payload before patching",
   "root_hardware_verified": false,
   "notes": "First YOC unit on this method. Read-only read_state probe on 2026-11-13 proved the AVB TA 023f8f1a-292a-432b-8fc4-de8471358067 is reachable from shell via /dev/tee0 (LOGIN_PUBLIC), command 2 lock_state a=1. No init_boot partitions: boot_a=mmcblk0p20, boot_b=mmcblk0p21, vbmeta_a=p24, vbmeta_b=p25, vbmeta_system p26/p27, vendor_boot p5/p6, virtual A/B enabled. Stock boot image source for rooting: YOC's own 15051976 OTA (not the jarvis/SNA image in the 2024 repo). The exact serial of the first unit is kept only in local work/ receipts."

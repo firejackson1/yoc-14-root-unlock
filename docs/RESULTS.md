@@ -20,7 +20,7 @@ its 15051976 → 16202347 upgrade).
 | Reboot requested by tooling | Never; all reboots manual |
 | Android baseline before the write | `flash.locked=1`, `verifiedbootstate=green`, `vbmeta.device_state=locked` |
 | Factory reset on the following boot | Expected and observed to start; data loss accepted beforehand |
-| Post-reboot unlocked/orange persistence | In verification on the first boot after the reset |
+| Post-reboot unlocked/orange persistence | Verified: factory reset completed, fresh boot reported `flash.locked=0`, `vbmeta.device_state=unlocked`, `verifiedbootstate=orange`, trusted state 0, boot completed |
 | Partition layout | No `init_boot`; ramdisk in `boot` (`boot_a`=`mmcblk0p20`, `boot_b`=`mmcblk0p21`), classic Amlogic layout, virtual A/B enabled |
 | Root installation | Not yet attempted; plan is Magisk-patching whichever partition carries the generic ramdisk on this build (`boot_a` or `vendor_boot_a`) from the YOC's own OTA image |
 
@@ -87,10 +87,9 @@ the `GUSA` serial family, not one serial.
 
 ## Not yet established
 
-- Post-reboot orange/unlocked proof on this unit (verification in
-  progress at the time of writing).
-- Root on this model: stock `boot` image sourcing from the YOC's own
-  15051976 OTA, Magisk patch, `boot_a` flash with full readback, and
+- Root on this model: stock image sourcing from the YOC's own 15051976 OTA,
+  Magisk patch of whichever partition carries the generic ramdisk on this
+  build (`boot_a` or `vendor_boot_a`), flash with full readback, and
   update-pause discipline are planned but not yet executed.
 - One unit does not establish support for other YOC firmware versions or
   hardware sold under a similar name.
