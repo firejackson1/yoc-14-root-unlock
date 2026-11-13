@@ -1,0 +1,17 @@
+work/
+cache/
+__pycache__/
+*.pyc
+.venv/
+native/test_unlock_logic
+*.img
+*.apk
+*.zip
+*.gz
+*.erofs
+*.raw
+*.elf
+*.pem
+*.key
+adbkey*
+AGENTS.md

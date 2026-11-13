@@ -1,0 +1,8 @@
+{
+  "bin/armeabi-v7a/read_state": "03d2c353a7b748767b280370ff656fd8cb10040c812bc42d99756b9efa788460",
+  "bin/armeabi-v7a/unlock_once": "dbd1db403e427c8c02205395ca81bf07ca17e266373578f18ebeb4d0b0ba5ef7",
+  "native/read_state.c": "0389f266f6fb97e6f8a40a13d9d9f6a6dc3ab32b74256e993c614417dab9e3bf",
+  "native/test_unlock_logic.c": "f2572b7b8c178a2523ceb3008ef8bf7b0ea86aba137e3d7742fd29daefe6ed2b",
+  "native/unlock_logic.h": "eaacb379a85163e7f88737d69fe8c390d91f8b1db1bca8304c0667fd6a53d4a4",
+  "native/unlock_once.c": "95385428bcacb06433fb6a6fd1cd269d5f962b70b469f96bbd50986b5371038d"
+}
