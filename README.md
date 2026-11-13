@@ -115,6 +115,8 @@ user re-enables ADB debugging and `verify` proves orange/unlocked.
   `uid=2000|policy=2|until=0`, and a `boot_a` readback whose sha256 equals
   the flashed image. Receipt:
   `work/20261113T041934Z-flash-boot-3a68a3/`.
+  **Full step-by-step (sanitized, self-contained):
+  `docs/ROOT-PROCEDURE.md`.**
 - The reset-button fastboot menu documented on XDA for this model is a
   hardware fallback if a future flash is unbootable.
 - This is the first YOC on this method; `unlock_hardware_verified` in
