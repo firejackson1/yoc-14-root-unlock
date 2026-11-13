@@ -3,10 +3,20 @@
 Root needs stock images of the exact running build
 (`onn/onn_4k_gtv/YOC:14/URO4.260304.011.B1/15051976:user/release-keys`).
 Neither Google OTA delta that touches this build carries full `boot` or
-`vendor_boot` images (both are source-copy deltas), so a stock image must be
-sourced elsewhere and *proven* to be this build before anything is patched
-or flashed. This page records the validation standard and the evidence
-behind it. The comparison itself is read-only; no device was touched.
+`vendor_boot` images (both are source-copy deltas), so a stock image had to
+be sourced elsewhere and *proven* to be this build before anything is
+patched or flashed. This page records the validation standard and the
+evidence behind it. The comparison itself is read-only; no device was
+touched.
+
+**Status (2026-11-13): sourced and validated.** Google's own full OTA
+for 15051976 (lineage entry #4 below) was located through a third-party
+tracker's stored checkin result; `boot`, `vendor_boot`, `vbmeta`,
+`vbmeta_system` and `dtbo` were then extracted from it over HTTP range
+requests with `tools/fetch_full_ota_partitions.py` (receipt:
+`work/20261113T034457Z-stock-image-fetch-29615442/`). All five images
+match this table byte-exactly. The images live outside git in
+`cache/stock-15051976/`.
 
 The table below is generated from
 `work/20261113T023909Z-firmware-crosscheck-9ee2c82c/build-15051976-validated-partitions.json`;
@@ -19,9 +29,12 @@ do not hand-edit the hashes.
 | 1 | `11261715` (A12) → `14238279` (A14 `URO1.250103.055.A2`) | FULL, 855.6 MB | `223800036cad7ec81235678349fd108473acfc7f.zip` | Not downloaded. URL and post-build per OTAChecker entry #1811 (third-party tracker, captured 2025-11-27). Must be verified on download. |
 | 2 | `14238279` → **`15051976`** | Incremental, 326,474,649 B | `e07744b09b02f8e8fcc66ecc6ec0654212d66cfc.zip` | Payload manifest read completely via an HTTP range request (CrAU v2, 299,256-byte manifest). Pre/post builds confirmed locally. |
 | 3 | **`15051976`** → `16202347` (`URO4.260304.092`) | Incremental, 68,950,795 B | `04719fd8a6758871adad5c6821389f4cdb7df533.zip` | Full zip held in `cache/`, sha256 `c569532273627f08d40105d5a7c150aa98b05c41d89754f270f5a8f94d4b6f63`. URL captured from this unit's own SystemUpdate log (2026-11-13). |
+| 4 | `9885170` (A12) → **`15051976`** | FULL, 885,444,096 B | `f504b3fd7088e606bc8eaba9542a03709b474d62.zip` | **The exact-build stock source.** URL per OTAChecker entry #2201 (post-timestamp 2026-03-19; the tracker recorded Google serving this full to an Android 12 fingerprint in March 2026). Read via range requests only; payload metadata SHA-256 verified against its own `payload_properties.txt`; the five needed partitions extracted and hash-verified 2026-11-13. Never stored whole. |
 
 Google's OTA URLs redirect to `redirector.gvt1.com` and do honor range
-requests, which is how manifest #2 was read without storing 311 MB.
+requests, which is how manifest #2 was read without storing 311 MB and how
+the needed partitions of full OTA #4 were extracted without storing its
+885 MB.
 
 ## Cross-manifest validation of 15051976
 
@@ -73,10 +86,13 @@ the byte counts below are the partition lengths, not trimmed image sizes.
   not affect rooting (we flash neither bootloader nor anything whose hash
   disagrees), and it is one more reason not to take the `16202347` update
   blindly.
-- OTAChecker is a third-party tracker. Its two URLs are Google `ota-api`
+- OTAChecker is a third-party tracker. Its URLs are Google `ota-api`
   package links, and the locally read manifests independently confirm the
-  pre/post builds, but the full OTA (#1) has not been downloaded or
-  verified here.
+  pre/post builds. Full OTA #1 remains undownloaded; full OTA #4 was
+  located through the tracker (entry #2201) and then verified here entirely
+  against Google's own payload data: the metadata SHA-256 from
+  `payload_properties.txt`, per-operation SHA-256 values, and
+  per-partition SHA-256 values matching this table.
 - A community dump (dumps.tadiphone.dev / t.me/android_dumps message
   10231, exact fingerprint match) is a device-side `dd`, not a
   Google-signed artifact. It becomes trustworthy **only** after matching
@@ -95,26 +111,19 @@ is from a different build or OTA track and must not be patched or flashed.
 Never extend this rule to "close enough": a wrong-build `boot`/`vendor_boot`
 is a brick risk, and the reset-button fastboot menu is the only recovery.
 
-## If no dump is available: recorded fallback (not executed)
+## Recorded fallback (superseded; not executed)
 
-The full-OTA → delta chain could rebuild 15051976 images entirely from
-Google-signed packages:
-
-1. Download full OTA #1 (`2238000…`) and verify locally that its post
-   condition is `14238279`; extract full `14238279` `boot` and
-   `vendor_boot` (full payloads use REPLACE-family operations, so
-   extraction is complete-image).
-2. Apply delta #2 (`e07744…`, 14238279 → 15051976) to those images. Its
-   `boot` uses SOURCE_COPY, ZERO, PUFFDIFF and ZUCCHINI operations
-   (30 ops, 4,623,237 data bytes); its `vendor_boot` uses SOURCE_COPY,
-   ZERO and ZUCCHINI (7 ops, 1,262,218 data bytes). This requires a
-   host-side implementation of those delta algorithms — no pip/apt on this
-   host — and has **not** been built or run.
-3. Verify the results against the table above; only a byte-exact match
-   counts.
-
-This chain is recorded as the fallback, not chosen: the community dump
-plus hash validation is simpler and already equally verifiable.
+Before OTA #4 was found, the recorded fallback was to rebuild 15051976
+images from Google-signed packages: extract `14238279` images from full
+OTA #1 (`2238000…`), then apply delta #2 (`e07744…`, 14238279 →
+15051976). A complete parse of delta #2's manifest (cached head) shows its
+`boot` uses PUFFDIFF, BROTLI, SOURCE_COPY and ZERO operations (30 ops,
+4,623,237 data bytes) and its `vendor_boot` uses BROTLI, SOURCE_COPY and
+ZERO (7 ops, 1,262,218 data bytes); PUFFDIFF and BROTLI blobs would have
+required host-side brotli/puffdiff implementations (no pip/apt on this
+host). With OTA #4 located and verified, this chain stays recorded but
+unneeded; only a byte-exact match against the table above would have
+counted.
 
 ## Partition-length facts for the flash phase
 
@@ -124,3 +133,15 @@ plus hash validation is simpler and already equally verifiable.
 - `vbmeta`: 8192 B. Rooting keeps verity (`KEEPVERITY=true`) and does
   not patch vbmeta, as on the jarvis2 flow; the already-unlocked (orange)
   state is what permits the modified image.
+
+## Ramdisk location (from the validated stock images, 2026-11-13)
+
+`tools/inspect_boot_image.py` on the extracted stock images confirms the
+generic ramdisk lives in **`boot`**: `boot` carries a 1,845,968-byte
+lz4_legacy ramdisk with `init` (26 cpio entries, GKI-style first-stage
+skeleton), while `vendor_boot`'s ramdisk is vendor-only (48 entries,
+`first_stage_ramdisk/fstab.amlogic`, f2fs tooling, no `init`). The
+Magisk patch target is therefore **`boot.img`**, not the Android 12-era
+`vendor_boot`. The `boot` kernel is gzip-compressed (arm64 magic verified
+after decompression); `vendor_boot` packs a bzip2-compressed Amlogic
+multi-dtb (`AML_` v2, 4 dtbs) behind its ramdisk.

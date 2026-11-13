@@ -77,15 +77,16 @@ user re-enables ADB debugging and `verify` proves orange/unlocked.
 - No `init_boot` partitions on the YOC: `boot_a`=`mmcblk0p20`,
   `boot_b`=`mmcblk0p21`, `vendor_boot_a`=`mmcblk0p5`,
   `vendor_boot_b`=`mmcblk0p6`; virtual A/B enabled, classic Amlogic layout.
-- **Determine the ramdisk partition from the OTA payload before patching**:
-  the Android 12 community method patched `vendor_boot`, not `boot`, so the
-  Android 14 target (`boot_a` or `vendor_boot_a`) must be confirmed from the
-  payload images, not assumed.
-- The stock image must come from the YOC's own 15051976 OTA — do not assume
-  the 2024 repo's `firmware/stock-boot-15051976.img.gz` (jarvis/SNA) or the
-  Android 12-era YOC OTA (XDA thread) matches this build. Exact per-partition
-  lengths and SHA-256 values for validating any candidate image, cross-checked
-  against two Google OTA manifests, are in `docs/FIRMWARE-SOURCES.md`.
+- **Ramdisk partition confirmed (2026-11-13) from the validated stock
+  images**: the generic ramdisk (`init`, GKI-style first-stage skeleton) is
+  in `boot`; `vendor_boot` is vendor-only. The Magisk target is `boot_a`,
+  not the Android 12-era `vendor_boot`.
+- Stock images for the exact 15051976 build were sourced from Google's own
+  full OTA for that build and validated byte-exactly against the two-manifest
+  cross-check (`docs/FIRMWARE-SOURCES.md`; images in `cache/stock-15051976/`,
+  out of git). Do not assume the 2024 repo's
+  `firmware/stock-boot-15051976.img.gz` (jarvis/SNA) or the Android 12-era
+  YOC OTA (XDA thread) matches this build.
 - The reset-button fastboot menu documented on XDA for this model is a
   hardware fallback if a future flash is unbootable.
 - This is the first YOC on this method; `unlock_hardware_verified` in

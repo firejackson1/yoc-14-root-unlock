@@ -190,17 +190,23 @@ def detect_and_decompress(blob):
 
 
 def kernel_check(blob):
-    """(compression, is_arm64) — decompress only enough to check the magic."""
+    """(compression, is_arm64) — decompress only enough to check the magic.
+
+    arm64 Image magic is "ARM\\x64" at offset 0x38; EFI-stub kernels start MZ.
+    """
+    def looks_arm64(d):
+        return d[0x38:0x3c] == b"ARM\x64" or d[:2] == b"MZ"
+
     if blob[:4] == b"\x02\x21\x4c\x18":
         head = lz4_legacy_decompress(blob, maxout=4096)
-        return "lz4_legacy", head[4:8] == b"ARM\x64" or head[:2] == b"MZ"
+        return "lz4_legacy", looks_arm64(head)
     if blob[:2] == b"\x1f\x8b":
         d = gzip.decompress(blob)
-        return "gzip", d[4:8] == b"ARM\x64" or d[:2] == b"MZ"
+        return "gzip", looks_arm64(d)
     if blob[:4] == b"\x04\x22\x4d\x18":
         d = lz4_frame_decompress(blob)
-        return "lz4", d[4:8] == b"ARM\x64" or d[:2] == b"MZ"
-    if blob[:2] == b"MZ" or blob[4:8] == b"ARM\x64":
+        return "lz4", looks_arm64(d)
+    if blob[:2] == b"MZ" or blob[0x38:0x3c] == b"ARM\x64":
         return "raw", True
     return "unknown", None
 
@@ -379,8 +385,30 @@ def main():
                 if "bootconfig_size" in h:
                     entry["bootconfig_size"] = h["bootconfig_size"]
                 entry["offsets"] = h["offsets"]
-                entry["dtb_magic_ok"] = bool(h["sections"]["dtb"]) and \
-                    h["sections"]["dtb"][:4] == DTB_MAGIC
+                dtb = h["sections"]["dtb"]
+                if dtb[:3] == b"BZh":
+                    # Amlogic packs a bzip2-compressed dtb in vendor_boot
+                    try:
+                        dtb = bz2.decompress(dtb)
+                        entry["dtb_compression"] = "bzip2"
+                    except Exception:
+                        entry["dtb_compression"] = "bzip2 (undecoded)"
+                if dtb[:4] == b"AML_":
+                    # Amlogic multi-dtb container: version, count, then a
+                    # table of raw dtbs (each starting d00dfeed)
+                    version, count = u32(dtb, 4), u32(dtb, 8)
+                    occ, pos = [], 0
+                    while True:
+                        i = dtb.find(DTB_MAGIC, pos)
+                        if i < 0:
+                            break
+                        occ.append(i)
+                        pos = i + 1
+                    entry["dtb_format"] = (f"amlogic-multi-dtb v{version} "
+                                         f"({count} entries, {len(occ)} dtb magics)")
+                    entry["dtb_magic_ok"] = len(occ) >= 1
+                else:
+                    entry["dtb_magic_ok"] = bool(dtb) and dtb[:4] == DTB_MAGIC
                 blob = h["sections"]["vendor_ramdisk"]
                 if blob:
                     comp, dec = detect_and_decompress(blob)
