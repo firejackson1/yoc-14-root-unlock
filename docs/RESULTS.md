@@ -94,7 +94,7 @@ one was ever opened:
 | Layer | State on this unit | Evidence |
 | --- | --- | --- |
 | AVB device state (TEE) | Unlocked, persisting | `read_state` re-probe as plain shell, 0 write commands: `lock_state a=0`; `flash.locked=0`, `verifiedbootstate=orange`, `vbmeta.device_state=unlocked`, `veritymode=enforcing` |
-| Bootloader fastboot gate | Still closed; never needed | bootloader fastboot refused partition writes as "locked device" during flash prep; recovery Fastbootd and root `dd` both bypass it |
+| Bootloader fastboot gate | Still closed; directly confirmed | post-unlock probe in bootloader mode (2026-11-13, user-approved): `fastboot getvar unlocked` → `unlocked: no`, `secure: yes`; `fastboot oem device-info` refused as "locked device"; recovery Fastbootd and root `dd` both bypass it |
 
 Everything else measured stock and healthy:
 
@@ -126,6 +126,22 @@ at offset 2048 — preserved and byte-verified by an independent readback.
 With the command field empty, the canonical state, any future reboot
 follows the normal Android path; `adb reboot bootloader`/`recovery`
 rewrite the field on demand, so nothing is lost.
+
+A direct probe of the bootloader's fastboot mode (2026-11-13,
+user-approved, one reboot) closed the last open question: in that mode
+the bootloader reports `unlocked: no` and `secure: yes` and refuses
+even `fastboot oem device-info` as "locked device" — the same refusal
+the write attempts saw during flash prep. The two locks are fully
+independent: boot decisions honor the TEE state (orange, patched
+`boot_a` passes), while the fastboot flashing gate keeps its own flag,
+untouched by the trusted-service unlock. Operational notes for anyone
+repeating the probe: this bootloader's fastboot gadget enumerates as
+`18d1:4ee7` (the same PID as ADB mode, not `4ee0`, so host udev rules
+must cover it); `adb reboot bootloader` rewrites the
+`bootonce-bootloader` BCB command, so the canonical-clear procedure was
+repeated after returning to Android (`fastboot reboot` booted back in
+~30 s with root intact immediately). Receipt:
+`work/20261113T174214Z-bootlayer-fastboot-probe-0004/` (out of git).
 
 Re-locking the TEE state is possible but only sensible after restoring
 the stock `boot_a`: a locked device enforces AVB and the
