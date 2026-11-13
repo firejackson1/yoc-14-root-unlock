@@ -22,7 +22,7 @@ its 15051976 → 16202347 upgrade).
 | Factory reset on the following boot | Expected and observed to start; data loss accepted beforehand |
 | Post-reboot unlocked/orange persistence | Verified: factory reset completed, fresh boot reported `flash.locked=0`, `vbmeta.device_state=unlocked`, `verifiedbootstate=orange`, trusted state 0, boot completed |
 | Partition layout | No `init_boot`; ramdisk in `boot` (`boot_a`=`mmcblk0p20`, `boot_b`=`mmcblk0p21`), classic Amlogic layout, virtual A/B enabled |
-| Root installation | Patched image built and verified (2026-11-13); flash pending. Exact-build stock images sourced from Google's full OTA for 15051976 and validated byte-exactly; the generic ramdisk is confirmed in `boot`, so the Magisk target is `boot_a` |
+| Root installation | Complete (2026-11-13): Magisk v30.7 `armeabi-v7a` headless on-device patch of `boot` (no file picker on this ATV build), flashed to `boot_a` via recovery Fastbootd over Beercan USB, booted cleanly on the same build; first-boot env gap (`/data/adb/magisk` never installed by the headless path) repaired through the app's own EnvFix flow; `su` magic-mounted at `/system_ext/bin/su`; `su -c id` → `uid=0(root) context=u:r:magisk:s0`; policy `uid=2000 policy=2 until=0` persisted; `boot_a` readback sha256 equals the flashed image exactly |
 | Userland ABI | 32-bit: `armeabi-v7a`, `zygote32`, no `/system/lib64` and no `linker64` anywhere, on an arm64 kernel. Anything staged on this box must be `armeabi-v7a` — the arm64 Magisk binaries fail to exec (ENOENT: their `PT_INTERP` `/system/bin/linker64` does not exist); the 32-bit `magisk` is static-PIE and runs unprivileged |
 | Magisk-patched `boot` | Built headlessly on-device with the pinned Magisk v30.7 APK's own `boot_patch.sh` + `armeabi-v7a` libs (this ATV build has no documentsui, so the app's file picker cannot run). Flags: `KEEPVERITY=true`, `KEEPFORCEENCRYPT=true`, `PATCHVBMETAFLAG=false`, `RECOVERYMODE=false`, `LEGACYSAR=false`; pre-init partition `metadata`. Verified byte-level: kernel identical to stock, all 26 stock ramdisk entries preserved, 9 Magisk entries whose payloads hash-match the kit, backup config recorded, AVB footer preserved/relocated exactly as the app produces it (receipt `work/20261113T040256Z-magisk-patch-50001366/`) |
 
@@ -47,6 +47,42 @@ kernel boot ID was confirmed unchanged across the whole sequence. The
 attempt cannot silently replay: the on-device one-shot marker is created
 exclusively before the write request, and the host-side attempt record
 (`work/devices/<serial-hash>/unlock-attempt.json`) is also exclusive.
+
+## Root execution trace (first YOC)
+
+The flash and grant chain, all on the exact stock build 15051976, with
+every partition write receipted in `work/20261113T041934Z-flash-boot-3a68a3/`:
+
+```text
+stock boot.img (Google full OTA, byte-verified)
+  → Magisk v30.7 armv7 headless on-device patch  (receipt ...-magisk-patch-50001366)
+  → fastbootd flash boot_a                        (Sending/Writing OKAY, single partition)
+  → boot: orange, slot _a, magiskd running        (app root OK; shell su denied)
+  → app EnvFix (fix_env, /data/adb/magisk only)  (app-sanctioned repair, no partition writes)
+  → su at /system_ext/bin/su, policy Query        (first prompt auto-denied after 10 s and persisted)
+  → Superuser tab: revoke deny row                 (PolicyDao delete, DB-only)
+  → su request + DPAD grant via input channel      (uid=0, Allow forever)
+  → boot_a readback sha256 == flashed image         (byte-exact)
+```
+
+Two behaviors worth recording for anyone repeating this headless flow:
+
+- **A headless patch+flash has no install step.** The daemon comes up
+  from ramdisk with an empty `/data/adb/magisk`, so `su` is not mounted
+  and requests are denied with no prompt. The app's own EnvFix dialog
+  (`fix_env`, app binaries → `/data/adb/magisk`) is the sanctioned
+  repair; it writes no partitions.
+- **The superuser prompt auto-denies and persists the deny.** With default
+  settings, `SuRequestActivity` counts down 10 s and writes a
+  Deny-forever policy row for the requesting uid — so an unanswered
+  prompt blocks later attempts before any prompt is shown again. Revoke
+  the row in the app's Superuser tab to return to the prompt state.
+- **The prompt is invisible to uiautomator on Android 14.** With
+  `suTapjack` on (default, and the Settings toggle is removed on
+  SDK ≥ 32), the whole window is hidden from accessibility. Grant via the
+  input channel instead: `keyevent 22` then `keyevent 23` ~3.5 s after
+  firing the request (deny is the initial focus; grant enables after the
+  first countdown tick).
 
 ## Evidence lineage
 
@@ -89,9 +125,5 @@ the `GUSA` serial family, not one serial.
 
 ## Not yet established
 
-- Root flash and verification: the Magisk-patched `boot` image for
-  15051976 is built and byte-level verified; flashing it to `boot_a`
-  through recovery Fastbootd and post-boot `su` verification are planned
-  but not yet executed.
 - One unit does not establish support for other YOC firmware versions or
   hardware sold under a similar name.

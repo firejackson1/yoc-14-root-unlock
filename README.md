@@ -92,8 +92,29 @@ user re-enables ADB debugging and `verify` proves orange/unlocked.
   box; the arm64 kit cannot exec there), run headlessly on-device via the
   APK's own `boot_patch.sh` because this ATV build has no file picker.
   Output: `cache/magisk-patched-15051976/new-boot.img` (out of git),
-  receipt `work/20261113T040256Z-magisk-patch-50001366/`. Flashing it to
-  `boot_a` through recovery Fastbootd is the remaining step.
+  receipt `work/20261113T040256Z-magisk-patch-50001366/`.
+- **Flashed and verified (2026-11-13)**: the patched image was written to
+  `boot_a` through recovery Fastbootd (bootloader fastboot refuses writes
+  on this unit as a "locked device"; the recovery-userspace Fastbootd
+  accepts them while unlocked-orange) and booted cleanly on the same
+  build. A headless patch+flash skips Magisk's normal install step, so the
+  first boot lacked `/data/adb/magisk`; that gap was repaired through the
+  app's own sanctioned EnvFix flow (app binaries copied into
+  `/data/adb/magisk`, no partition writes), after which `su` is
+  magic-mounted at `/system_ext/bin/su`.
+- **Granting shell superuser on this build**: the Magisk prompt
+  (`SuRequestActivity`) is invisible to uiautomator on Android 14
+  (`suTapjack` attaches an empty accessibility delegate, and the toggle is
+  removed from Settings on SDK ≥ 32), and its 10 s countdown auto-denies
+  and *persists* the deny policy forever by default. Working procedure:
+  revoke any `[SharedUID] Shell` deny row in the app's Superuser tab, fire
+  the `su` request with the app foreground, then drive the prompt through
+  the input channel — `keyevent 22` (DPAD right, deny→grant focus) and
+  `keyevent 23` (DPAD center, click grant) about 3.5 s after firing.
+  Verified: `su -c id` → `uid=0(root)`, policy
+  `uid=2000|policy=2|until=0`, and a `boot_a` readback whose sha256 equals
+  the flashed image. Receipt:
+  `work/20261113T041934Z-flash-boot-3a68a3/`.
 - The reset-button fastboot menu documented on XDA for this model is a
   hardware fallback if a future flash is unbootable.
 - This is the first YOC on this method; `unlock_hardware_verified` in
